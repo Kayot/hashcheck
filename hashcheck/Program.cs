@@ -134,8 +134,8 @@ namespace hashcheck
                 {
                     if (UpdateMode)
                     {
-                        //Data CurrentEntry = FromCheckFile[Convert.ToInt32(CheckFile.Index)];
-                        //bool FileChanged = false;
+                        Data CurrentEntry = FromCheckFile[Convert.ToInt32(CheckFile.Index)];
+                        bool FileChanged = false;
                         //if (CheckFile.CreateTime != CreationTime)
                         //{
                         //    Console.WriteLine(i + " -- Creation Time Changed. Updating Entry!");
@@ -148,25 +148,25 @@ namespace hashcheck
                         //    CurrentEntry.LastWrite = LastWriteTime;
                         //    FileChanged = true;
                         //}
-                        //if (CheckFile.FileSize != FileSize)
-                        //{
-                        //    Console.WriteLine(i + " -- Wrong File Size. Updating Entry!");
-                        //    CurrentEntry.FileSize = FileSize;
-                        //    FileChanged = true;
-                        //}
+                        if (CheckFile.FileSize != FileSize)
+                        {
+                            Console.WriteLine(i + " -- Wrong File Size. Updating Entry!");
+                            CurrentEntry.FileSize = FileSize;
+                            FileChanged = true;
+                        }
 
-                        //string s = GetHash(i);
-                        //if (CheckFile.SHA1Hash != s)
-                        //{
-                        //    Console.WriteLine(i + " -- Hashes do not match. Updating Entry!");
-                        //    CurrentEntry.SHA1Hash = s;
-                        //    FileChanged = true;
-                        //}
+                        string s = GetHash(i);
+                        if (CheckFile.SHA1Hash != s)
+                        {
+                            Console.WriteLine(i + " -- Hashes do not match. Updating Entry!");
+                            CurrentEntry.SHA1Hash = s;
+                            FileChanged = true;
+                        }
 
-                        //if (FileChanged == true)
-                        //{
-                        //    FromCheckFile[Convert.ToInt32(CheckFile.Index)] = CurrentEntry;
-                        //}
+                        if (FileChanged == true)
+                        {
+                            FromCheckFile[Convert.ToInt32(CheckFile.Index)] = CurrentEntry;
+                        }
                     }
                     else
                     {
@@ -233,6 +233,7 @@ namespace hashcheck
                 File.Move(InputFile, InputFile + ".bak");
                 File.Move(InputFile + ".temp", InputFile);
             }
+            Console.WriteLine("Finished.");
         }
 
         struct Data
