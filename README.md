@@ -54,10 +54,7 @@ Nothing lasts forever, the contents of a drive will change over time and recreat
 
 This will check the check file aginst the file system, add entries that don't exist in the check file, and remove entries that no longer exist. This process is fast as it doesn't check hashes for existing files with the same size, creation date, and modification date. New entries are appended to the end of the file.
 
-Experimental;
-
-I haven't tested this under linux as of yet, however the usage should be about the same, only target mount points instead of drives. I'll test it more this weekend.
-
 ## Tested
 
-I've tested this in Windows 10 (1909)
+Windows 10 (1909)
+Ubuntu 18.04 x86_64
