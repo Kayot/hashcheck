@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "hashcheck": {
+      "commandName": "Project",
+      "commandLineArgs": "-uf e:\\Applications.pack e:\\Applications"
+    }
+  }
+}
