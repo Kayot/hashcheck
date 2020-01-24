@@ -11,15 +11,6 @@ namespace hashcheck
     {
         static void Main(string[] args)
         {
-
-            //string x = GetHash("d:\\Agent-Agent.tab");
-
-            //Console.WriteLine(x);
-            //GetAllHashes("d:\\Temp");
-
-            //Console.WriteLine("Creating SHA1 Hashes...");
-
-
             if (args.Length < 3)
             {
                 Console.WriteLine("Hash Check v0.1");
@@ -29,7 +20,6 @@ namespace hashcheck
                 Console.WriteLine("-vf [filename]\t\tChecks a check file");
                 Console.WriteLine("-uf [filename]\t\tUpdates a check file (Removes missing, adds new)");
             }
-
             if (args.Length == 3)
             {
                 if (args[0] == "-cf")
@@ -69,7 +59,6 @@ namespace hashcheck
                             try
                             {
                                 string x = CurrentFile.CreationTime.ToString("yyyyMMddHHmmss");
-                                //DateTime y = CurrentFile.LastAccessTime;
                                 string z = CurrentFile.LastWriteTime.ToString("yyyyMMddHHmmss");
                                 long a = CurrentFile.Length;
                                 string s = GetHash(i);
@@ -116,17 +105,17 @@ namespace hashcheck
             }
             Console.WriteLine("Getting File List...");
             List<string> FileList = GetAllFiles(Folder);
-            for (int i = 0; i < FileList.Count; i++)
+            for (int i = 0; i < FromCheckFile.Count; i++)
             {
-                Data Location = FromCheckFile.Where(t => t.FileName == FileList[i]).FirstOrDefault();
-                if (!string.IsNullOrEmpty(Location.FileName) && Location.FileName != FileList[i])
+                bool FileExistsInFileSystem = FileList.Contains(FromCheckFile[i].FileName);
+                if (!FileExistsInFileSystem)
                 {
                     if (UpdateMode)
                     {
-                        Console.WriteLine(Location.FileName + " -- Does not exist in file system, removing entry!");
-                        Data x = FromCheckFile[Location.Index];
+                        Console.WriteLine(FromCheckFile[i].FileName + " -- Does not exist in file system, removing entry!");
+                        Data x = FromCheckFile[i];
                         x.FileName = "--DELETED--";
-                        FromCheckFile[Location.Index] = x;
+                        FromCheckFile[i] = x;
                     }
                     else
                     {
@@ -145,37 +134,39 @@ namespace hashcheck
                 {
                     if (UpdateMode)
                     {
-                        Data CurrentEntry = FromCheckFile[Convert.ToInt32(CheckFile.Index)];
-                        bool FileChanged = false;
-                        if (CheckFile.CreateTime != CreationTime)
-                        {
-                            Console.WriteLine(i + " -- Creation Time Changed. Updating Entry!");
-                            CurrentEntry.CreateTime = CreationTime;
-                            FileChanged = true;
-                        }
-                        if (CheckFile.LastWrite != LastWriteTime)
-                        {
-                            Console.WriteLine(i + " -- Last Write Time Changed. Updating Entry!");
-                            CurrentEntry.LastWrite = LastWriteTime;
-                            FileChanged = true;
-                        }
-                        if (CheckFile.FileSize != FileSize)
-                        {
-                            Console.WriteLine(i + " -- Wrong File Size. Updating Entry!");
-                            CurrentEntry.FileSize = FileSize;
-                            FileChanged = true;
-                        }
-                        string s = GetHash(i);
-                        if (CheckFile.SHA1Hash != s)
-                        {
-                            Console.WriteLine(i + " -- Hashes do not match. Updating Entry!");
-                            CurrentEntry.SHA1Hash = s;
-                            FileChanged = true;
-                        }
-                        if (FileChanged == true)
-                        {
-                            FromCheckFile[Convert.ToInt32(CheckFile.Index)] = CurrentEntry;
-                        }
+                        //Data CurrentEntry = FromCheckFile[Convert.ToInt32(CheckFile.Index)];
+                        //bool FileChanged = false;
+                        //if (CheckFile.CreateTime != CreationTime)
+                        //{
+                        //    Console.WriteLine(i + " -- Creation Time Changed. Updating Entry!");
+                        //    CurrentEntry.CreateTime = CreationTime;
+                        //    FileChanged = true;
+                        //}
+                        //if (CheckFile.LastWrite != LastWriteTime)
+                        //{
+                        //    Console.WriteLine(i + " -- Last Write Time Changed. Updating Entry!");
+                        //    CurrentEntry.LastWrite = LastWriteTime;
+                        //    FileChanged = true;
+                        //}
+                        //if (CheckFile.FileSize != FileSize)
+                        //{
+                        //    Console.WriteLine(i + " -- Wrong File Size. Updating Entry!");
+                        //    CurrentEntry.FileSize = FileSize;
+                        //    FileChanged = true;
+                        //}
+
+                        //string s = GetHash(i);
+                        //if (CheckFile.SHA1Hash != s)
+                        //{
+                        //    Console.WriteLine(i + " -- Hashes do not match. Updating Entry!");
+                        //    CurrentEntry.SHA1Hash = s;
+                        //    FileChanged = true;
+                        //}
+
+                        //if (FileChanged == true)
+                        //{
+                        //    FromCheckFile[Convert.ToInt32(CheckFile.Index)] = CurrentEntry;
+                        //}
                     }
                     else
                     {
@@ -244,15 +235,6 @@ namespace hashcheck
             }
         }
 
-        static void UpdateAllHashes(string Folder, string InputFile)
-        {
-
-
-        }
-
-
-
-
         struct Data
         {
             public int Index { get; set; }
@@ -263,10 +245,6 @@ namespace hashcheck
             public string SHA1Hash { get; set; }
         }
 
-
-
-
-
         private static List<string> GetAllFiles(string startLocation)
         {
             List<string> Files = new List<string>();
@@ -274,7 +252,6 @@ namespace hashcheck
             foreach (string directory in Directory.GetDirectories(startLocation))
             {
                 Files.AddRange(GetAllFiles(directory));
-                //Files.AddRange(Directory.GetFiles(directory));
             }
             return Files;
         }
@@ -318,21 +295,5 @@ namespace hashcheck
                 }
             }
         }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
     }
 }
