@@ -46,9 +46,17 @@ Or if you move the check file to the storage folder
 
 Paths are relative. That is the point of this project. Ease of use.
 
+## Updating the Check File
+
+Nothing lasts forever, the contents of a drive will change over time and recreating the check file takes time. Instead of creating a new check file, instead update the current check file.
+
+`hashcheck -uf d:\Applications.hashcheck d:\Applications`
+
+This will check the check file aginst the file system, add entries that don't exist in the check file, and remove entries that no longer exist. This process is fast as it doesn't check hashes for existing files with the same size, creation date, and modification date. New entries are appended to the end of the file.
+
 Experimental;
 
-I haven't tested this under linux as of yet, however the usage is about the same, only target mount points instead of drives.
+I haven't tested this under linux as of yet, however the usage should be about the same, only target mount points instead of drives. I'll test it more this weekend.
 
 ## Tested
 
