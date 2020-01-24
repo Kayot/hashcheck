@@ -95,7 +95,7 @@ namespace hashcheck
                             x.LastWrite = Sections[0].Substring(14, 14);
                             x.SHA1Hash = Sections[0].Substring(28, 40);
                             x.FileSize = Convert.ToInt64(Sections[0].Substring(68));
-                            x.FileName = Folder + Path.DirectorySeparatorChar + Sections[1];
+                            x.FileName = Folder + Path.DirectorySeparatorChar + Sections[1].Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
                             x.Index = LineIndex;
                             FromCheckFile.Add(x);
                             LineIndex++;
@@ -170,14 +170,14 @@ namespace hashcheck
                     }
                     else
                     {
-                        if (CheckFile.CreateTime != CreationTime)
-                        {
-                            Console.WriteLine(i + " -- Creation Time Changed");
-                        }
-                        if (CheckFile.LastWrite != LastWriteTime)
-                        {
-                            Console.WriteLine(i + " -- Last Write Time Changed");
-                        }
+                        //if (CheckFile.CreateTime != CreationTime)
+                        //{
+                        //    Console.WriteLine(i + " -- Creation Time Changed");
+                        //}
+                        //if (CheckFile.LastWrite != LastWriteTime)
+                        //{
+                        //    Console.WriteLine(i + " -- Last Write Time Changed");
+                        //}
                         if (CheckFile.FileSize != FileSize)
                         {
                             Console.WriteLine(i + " -- Wrong File Size, skipping SHA1");
