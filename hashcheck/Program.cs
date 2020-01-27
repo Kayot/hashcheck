@@ -19,7 +19,22 @@ namespace hashcheck
                 Console.WriteLine("-cf [filename]\t\tCreates a check file");
                 Console.WriteLine("-vf [filename]\t\tChecks a check file");
                 Console.WriteLine("-uf [filename]\t\tUpdates a check file (Removes missing, adds new)");
+                Console.WriteLine("-sf [filename]\t\tShrinks the check file (Reversable)");
+
             }
+
+            if (args.Length == 2)
+            {
+                if (args[0] == "-sf")
+                {
+                    ShrinkFile(args[1]);
+                }
+                if (args[0] == "-xf")
+                {
+
+                }
+            }
+
             if (args.Length == 3)
             {
                 if (args[0] == "-cf")
@@ -37,6 +52,86 @@ namespace hashcheck
                 }
             }
         }
+
+        static void ShrinkFile(string Filename)
+        {
+            string[] Input = System.IO.File.ReadAllLines(Filename);
+
+            //30
+            //30+40
+
+
+            List<byte> OutBytes = new List<byte>();
+
+
+            foreach (var i in Input)
+            {
+                var x = new ShrinkData();
+
+                string[] Sections = i.Split('\t');
+                x.Name = Sections[1];
+
+                string HashString = Sections[0].Substring(30, 40);//issue
+                long FileSizeString = Convert.ToInt64(Sections[0].Substring(70));
+
+                char JoinChar = '\r';
+
+                byte[] HashBytes = new byte[20]; //Convert.ToByte(HashString);
+
+                int ByteEntry = 0;
+                for (int z = 0; z < HashString.Length; z = z + 2)
+                {
+                    HashBytes[ByteEntry] = Convert.ToByte(HashString[z] + HashString[z + 1]);
+                    ByteEntry++;
+                }
+
+                OutBytes.AddRange(HashBytes);
+
+
+                byte[] tt = BitConverter.GetBytes(FileSizeString);
+                OutBytes.AddRange(tt);
+
+                OutBytes.Add(Convert.ToByte('\r'));
+
+                foreach (var z in x.Name)
+                {
+                    OutBytes.Add(Convert.ToByte(z));
+                }
+                OutBytes.Add(Convert.ToByte('\r'));
+
+                // x.Name.ToCharArray()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+            }
+
+
+            System.IO.File.WriteAllBytes("x:\\dump.bin", OutBytes.ToArray());
+
+
+
+
+        }
+
+        struct ShrinkData
+        {
+            public byte[] Hash { get; set; }
+            public long Size { get; set; }
+            public string Name { get; set; }
+        }
+
+
 
         static void GetAllHashes(string Folder, string OutputFile)
         {
