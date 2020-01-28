@@ -165,7 +165,14 @@ namespace hashcheck
                             x.FileSize = Convert.ToInt64(Sections[0].Substring(68));
                             x.FileName = Folder + Path.DirectorySeparatorChar + Sections[1].Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
                             x.Index = LineIndex;
-                            SLC("Loaded: " + x.FileName);
+                            if (("Loaded: " + x.FileName).Length >= Console.WindowWidth - 1)
+                            {
+                                SLC(("Loaded: " + x.FileName).Substring(0, Console.WindowWidth - 1));
+                            }
+                            else
+                            {
+                                SLC("Loaded: " + x.FileName);
+                            }
                             FromCheckFile.Add(x);
                             LineIndex++;
                         }
@@ -327,7 +334,6 @@ namespace hashcheck
             return Files;
         }
 
-
         static string GetHash(string Filename)
         {
             StringBuilder s = new StringBuilder();
@@ -346,9 +352,14 @@ namespace hashcheck
 
         static byte[] ComputeHash(Stream stream, HashAlgorithm hashAlgorithm, string Filename)
         {
-            SLC("0% Hashing: " + Path.GetFileName(Filename));
-
-
+            if (Path.GetFileName(Filename).Length > Console.WindowWidth - 18)
+            {
+                SLC("  0.00% Hashing: " + Path.GetFileName(Filename).Substring(0, Console.WindowWidth - 18));
+            }
+            else
+            {
+                SLC("  0.00% Hashing: " + Path.GetFileName(Filename));
+            }
             const int bufferLength = 0x1000;
             byte[] buffer = new byte[bufferLength * 2 + 1];
             int readAheadBytesRead, offset;
@@ -361,13 +372,12 @@ namespace hashcheck
             hashAlgorithm.Initialize();
             for (int i = 0; ; i++)
             {
-
                 offset = bufferLength * (i % 2);
                 readAheadBytesRead = stream.Read(buffer, offset, bufferLength);
                 if (readAheadBytesRead == 0)
                 {
                     hashAlgorithm.TransformFinalBlock(buffer, offset, readAheadBytesRead);
-                    SLC("100% Hashing: " + Path.GetFileName(Filename));
+                    Console.Write("\r100.00%");
                     return hashAlgorithm.Hash;
                 }
                 else
@@ -381,7 +391,7 @@ namespace hashcheck
                     if (PercentCheck != Math.Round(Percent, 2))
                     {
                         PercentCheck = Math.Round(Percent, 2);
-                        SLC($"{Math.Round(Percent, 2)}% Hashing: " + Path.GetFileName(Filename));
+                        Console.Write("\r" + Math.Round(Percent, 2).ToString().PadLeft(6));
                     }
                 }
             }
