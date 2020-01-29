@@ -1,8 +1,0 @@
-{
-  "profiles": {
-    "hashcheck": {
-      "commandName": "Project",
-      "commandLineArgs": "-vf x:\\Misc.hash x:\\Misc"
-    }
-  }
-}
