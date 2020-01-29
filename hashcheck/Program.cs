@@ -19,21 +19,20 @@ namespace hashcheck
                 Console.WriteLine("-cf [filename]\t\tCreates a check file");
                 Console.WriteLine("-vf [filename]\t\tChecks a check file");
                 Console.WriteLine("-uf [filename]\t\tUpdates a check file (Removes missing, adds new)");
-                Console.WriteLine("-sf [filename]\t\tShrinks the check file (Reversable)");
+                //Console.WriteLine("-sf [filename]\t\tShrinks the check file (Reversable)");
 
             }
 
-            if (args.Length == 2)
-            {
-                if (args[0] == "-sf")
-                {
-                    ShrinkFile(args[1]);
-                }
-                if (args[0] == "-xf")
-                {
-
-                }
-            }
+            //if (args.Length == 2)
+            //{
+            //    if (args[0] == "-sf")
+            //    {
+            //        ShrinkFile(args[1]);
+            //    }
+            //    if (args[0] == "-xf")
+            //    {
+            //    }
+            //}
 
             if (args.Length == 3)
             {
@@ -53,39 +52,31 @@ namespace hashcheck
             }
         }
 
-        static void ShrinkFile(string Filename)
-        {
-            string[] Input = System.IO.File.ReadAllLines(Filename);
-            List<ShrinkData> CheckData = new List<ShrinkData>();
+        //static void ShrinkFile(string Filename)
+        //{
+        //    string[] Input = System.IO.File.ReadAllLines(Filename);
+        //    List<ShrinkData> CheckData = new List<ShrinkData>();
+        //    foreach (string i in Input)
+        //    {
+        //        ShrinkData ni = new ShrinkData();
+        //        string[] SubData = i.Split("\t");
+        //        ni.Name = SubData[1];
+        //        ni.Hash = SubData[0].Substring(28, 40);
+        //        ni.Size = SubData[0].Substring(68);
+        //        CheckData.Add(ni);
+        //    }
+        //    CheckData = CheckData.OrderBy(t => t.Name).ToList();
+        //    for (int i = 0; i < CheckData.Count(); i++)
+        //    {
+        //    }
+        //}
 
-            foreach (string i in Input)
-            {
-                ShrinkData ni = new ShrinkData();
-                string[] SubData = i.Split("\t");
-                ni.Name = SubData[1];
-                ni.Hash = SubData[0].Substring(28, 40);
-                ni.Size = SubData[0].Substring(68);
-                CheckData.Add(ni);
-            }
-
-            CheckData = CheckData.OrderBy(t => t.Name).ToList();
-
-            for (int i = 0; i < CheckData.Count(); i++)
-            {
-
-
-
-            }
-
-
-        }
-
-        struct ShrinkData
-        {
-            public string Hash { get; set; }
-            public string Size { get; set; }
-            public string Name { get; set; }
-        }
+        //struct ShrinkData
+        //{
+        //    public string Hash { get; set; }
+        //    public string Size { get; set; }
+        //    public string Name { get; set; }
+        //}
 
         static void GetAllHashes(string Folder, string OutputFile)
         {
@@ -100,9 +91,13 @@ namespace hashcheck
             {
                 using (StreamWriter OutPut = new StreamWriter(OutFile))
                 {
-                    foreach (string i in FileList)
+                    int Padding = FileList.Count.ToString().Length;
+                    string RightSide = "/" + FileList.Count.ToString().PadLeft(Padding);
+                    for (int i = 0; i < FileList.Count; i++)
                     {
-                        FileInfo CurrentFile = new FileInfo(i);
+                        FileInfo CurrentFile = new FileInfo(FileList[i]);
+                        string FileCount = i.ToString().PadLeft(Padding) + RightSide;
+
                         if (CurrentFile.FullName != OutputFile)
                         {
                             try
@@ -114,8 +109,8 @@ namespace hashcheck
                                 string LastWrite = CurrentFile.LastWriteTime.ToUniversalTime().ToString("yyyyMMddHHmmss");
 
                                 long FileSize = CurrentFile.Length;
-                                string HashString = GetHash(i);
-                                OutPut.WriteLine(CreateTime + LastWrite + HashString + FileSize + "\t" + i.Replace(Folder + Path.DirectorySeparatorChar, ""));
+                                string HashString = GetHash(FileList[i], FileCount);
+                                OutPut.WriteLine(CreateTime + LastWrite + HashString + FileSize + "\t" + FileList[i].Replace(Folder + Path.DirectorySeparatorChar, ""));
                                 OutPut.Flush();
                             }
                             catch (Exception)
@@ -152,6 +147,9 @@ namespace hashcheck
                 {
                     int LineIndex = 0;
 
+                    int LastLineLength = 0;
+
+
                     while (!InStream.EndOfStream)
                     {
                         string Line = InStream.ReadLine();
@@ -165,9 +163,14 @@ namespace hashcheck
                             x.FileSize = Convert.ToInt64(Sections[0].Substring(68));
                             x.FileName = Folder + Path.DirectorySeparatorChar + Sections[1].Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
                             x.Index = LineIndex;
-                            if (("Loaded: " + x.FileName).Length >= Console.WindowWidth - 1)
+
+                            int TestLength = Encoding.UTF8.GetBytes(("Loaded: " + x.FileName)).Length;
+
+                            if (TestLength >= Console.WindowWidth)
                             {
-                                SLC(("Loaded: " + x.FileName).Substring(0, Console.WindowWidth - 1));
+                                string TestString = ("Loaded: " + x.FileName);
+                                int Diff = TestLength - Console.WindowWidth;
+                                SLC(TestString.Substring(0, TestString.Length - Diff));
                             }
                             else
                             {
@@ -200,13 +203,22 @@ namespace hashcheck
                     }
                 }
             }
-            foreach (string i in FileList)
+
+            int Padding = FileList.Count.ToString().Length;
+            string RightSide = "/" + FileList.Count.ToString().PadLeft(Padding);
+
+            for (int i = 0; i < FileList.Count; i++)
             {
-                FileInfo CurrentFile = new FileInfo(i);
-                Data CheckFile = FromCheckFile.Where(t => t.FileName == i).FirstOrDefault();
+                FileInfo CurrentFile = new FileInfo(FileList[i]);
+                Data CheckFile = FromCheckFile.Where(t => t.FileName == FileList[i]).FirstOrDefault();
                 string CreationTime = CurrentFile.CreationTime.ToUniversalTime().ToString("yyyyMMddHHmmss");
                 string LastWriteTime = CurrentFile.LastWriteTime.ToUniversalTime().ToString("yyyyMMddHHmmss");
                 long FileSize = CurrentFile.Length;
+
+                string FileCount = i.ToString().PadLeft(Padding) + RightSide;
+
+
+
                 if (CheckFile.FileName != null)
                 {
                     if (UpdateMode)
@@ -232,7 +244,7 @@ namespace hashcheck
                             FileChanged = true;
                         }
 
-                        string s = GetHash(i);
+                        string s = GetHash(FileList[i], FileCount);
                         if (CheckFile.SHA1Hash != s)
                         {
                             SLC(i + " -- Hashes do not match. Updating Entry!", true);
@@ -261,7 +273,7 @@ namespace hashcheck
                         }
                         else
                         {
-                            string s = GetHash(i);
+                            string s = GetHash(FileList[i], FileCount);
                             if (CheckFile.SHA1Hash != s)
                             {
                                 SLC(i + " -- Hashes do not match", true);
@@ -276,10 +288,10 @@ namespace hashcheck
                         SLC(i + " -- Does not exist in Check file. Adding!", true);
                         Data PushtoArray = new Data();
                         PushtoArray.CreateTime = CreationTime;
-                        PushtoArray.FileName = i;
+                        PushtoArray.FileName = FileList[i];
                         PushtoArray.FileSize = FileSize;
                         PushtoArray.LastWrite = LastWriteTime;
-                        PushtoArray.SHA1Hash = GetHash(i);
+                        PushtoArray.SHA1Hash = GetHash(FileList[i], FileCount);
                         FromCheckFile.Add(PushtoArray);
                     }
                     else
@@ -334,8 +346,19 @@ namespace hashcheck
             return Files;
         }
 
-        static string GetHash(string Filename)
+        static string GetHash(string Filename, string FileStatus)
         {
+            string FileStatusBase = "  0.00% " + FileStatus + " Hashing: " + Path.GetFileName(Filename);
+            int TestLength = Encoding.UTF8.GetBytes(FileStatusBase).Length;
+            if (TestLength >= Console.WindowWidth)
+            {
+                int Diff = TestLength - (Console.WindowWidth);
+                SLC(FileStatusBase.Substring(0, FileStatusBase.Length - Diff));
+            }
+            else
+            {
+                SLC(FileStatusBase);
+            }
             StringBuilder s = new StringBuilder();
             byte[] ResultBytes;
             using (FileStream SourceStream = File.Open(Filename, FileMode.Open))
@@ -352,14 +375,7 @@ namespace hashcheck
 
         static byte[] ComputeHash(Stream stream, HashAlgorithm hashAlgorithm, string Filename)
         {
-            if (Path.GetFileName(Filename).Length > Console.WindowWidth - 18)
-            {
-                SLC("  0.00% Hashing: " + Path.GetFileName(Filename).Substring(0, Console.WindowWidth - 18));
-            }
-            else
-            {
-                SLC("  0.00% Hashing: " + Path.GetFileName(Filename));
-            }
+
             const int bufferLength = 0x1000;
             byte[] buffer = new byte[bufferLength * 2 + 1];
             int readAheadBytesRead, offset;
