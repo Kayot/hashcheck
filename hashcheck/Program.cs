@@ -13,27 +13,13 @@ namespace hashcheck
         {
             if (args.Length < 3)
             {
-                Console.WriteLine("Hash Check v0.1");
+                Console.WriteLine("Hash Check v0.2");
                 Console.WriteLine("Usage: hashcheck [action] [target]");
                 Console.WriteLine("");
                 Console.WriteLine("-cf [filename]\t\tCreates a check file");
                 Console.WriteLine("-vf [filename]\t\tChecks a check file");
                 Console.WriteLine("-uf [filename]\t\tUpdates a check file (Removes missing, adds new)");
-                //Console.WriteLine("-sf [filename]\t\tShrinks the check file (Reversable)");
-
             }
-
-            //if (args.Length == 2)
-            //{
-            //    if (args[0] == "-sf")
-            //    {
-            //        ShrinkFile(args[1]);
-            //    }
-            //    if (args[0] == "-xf")
-            //    {
-            //    }
-            //}
-
             if (args.Length == 3)
             {
                 if (args[0] == "-cf")
@@ -51,32 +37,6 @@ namespace hashcheck
                 }
             }
         }
-
-        //static void ShrinkFile(string Filename)
-        //{
-        //    string[] Input = System.IO.File.ReadAllLines(Filename);
-        //    List<ShrinkData> CheckData = new List<ShrinkData>();
-        //    foreach (string i in Input)
-        //    {
-        //        ShrinkData ni = new ShrinkData();
-        //        string[] SubData = i.Split("\t");
-        //        ni.Name = SubData[1];
-        //        ni.Hash = SubData[0].Substring(28, 40);
-        //        ni.Size = SubData[0].Substring(68);
-        //        CheckData.Add(ni);
-        //    }
-        //    CheckData = CheckData.OrderBy(t => t.Name).ToList();
-        //    for (int i = 0; i < CheckData.Count(); i++)
-        //    {
-        //    }
-        //}
-
-        //struct ShrinkData
-        //{
-        //    public string Hash { get; set; }
-        //    public string Size { get; set; }
-        //    public string Name { get; set; }
-        //}
 
         static void GetAllHashes(string Folder, string OutputFile)
         {
@@ -102,12 +62,8 @@ namespace hashcheck
                         {
                             try
                             {
-                                //string CreateTime = CurrentFile.CreationTime.ToString("yyyyMMddHHmmss");
-                                //string LastWrite = CurrentFile.LastWriteTime.ToString("yyyyMMddHHmmss");
-
                                 string CreateTime = CurrentFile.CreationTime.ToUniversalTime().ToString("yyyyMMddHHmmss");
                                 string LastWrite = CurrentFile.LastWriteTime.ToUniversalTime().ToString("yyyyMMddHHmmss");
-
                                 long FileSize = CurrentFile.Length;
                                 string HashString = GetHash(FileList[i], FileCount);
                                 OutPut.WriteLine(CreateTime + LastWrite + HashString + FileSize + "\t" + FileList[i].Replace(Folder + Path.DirectorySeparatorChar, ""));
@@ -121,6 +77,9 @@ namespace hashcheck
                     }
                 }
             }
+            Console.WriteLine("Complete.");
+            Console.WriteLine();
+            Console.WriteLine();
         }
 
         static void SLC(string Output, bool EndWithNewLine = false)
@@ -146,10 +105,6 @@ namespace hashcheck
                 using (StreamReader InStream = new StreamReader(InFile))
                 {
                     int LineIndex = 0;
-
-                    int LastLineLength = 0;
-
-
                     while (!InStream.EndOfStream)
                     {
                         string Line = InStream.ReadLine();
@@ -163,9 +118,7 @@ namespace hashcheck
                             x.FileSize = Convert.ToInt64(Sections[0].Substring(68));
                             x.FileName = Folder + Path.DirectorySeparatorChar + Sections[1].Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
                             x.Index = LineIndex;
-
                             int TestLength = Encoding.UTF8.GetBytes(("Loaded: " + x.FileName)).Length;
-
                             if (TestLength >= Console.WindowWidth)
                             {
                                 string TestString = ("Loaded: " + x.FileName);
@@ -203,10 +156,8 @@ namespace hashcheck
                     }
                 }
             }
-
             int Padding = FileList.Count.ToString().Length;
             string RightSide = "/" + FileList.Count.ToString().PadLeft(Padding);
-
             for (int i = 0; i < FileList.Count; i++)
             {
                 FileInfo CurrentFile = new FileInfo(FileList[i]);
@@ -216,57 +167,47 @@ namespace hashcheck
                 long FileSize = CurrentFile.Length;
 
                 string FileCount = i.ToString().PadLeft(Padding) + RightSide;
-
-
-
                 if (CheckFile.FileName != null)
                 {
                     if (UpdateMode)
                     {
                         Data CurrentEntry = FromCheckFile[Convert.ToInt32(CheckFile.Index)];
                         bool FileChanged = false;
-                        //if (CheckFile.CreateTime != CreationTime)
-                        //{
-                        //    Console.WriteLine(i + " -- Creation Time Changed. Updating Entry!");
-                        //    CurrentEntry.CreateTime = CreationTime;
-                        //    FileChanged = true;
-                        //}
-                        //if (CheckFile.LastWrite != LastWriteTime)
-                        //{
-                        //    Console.WriteLine(i + " -- Last Write Time Changed. Updating Entry!");
-                        //    CurrentEntry.LastWrite = LastWriteTime;
-                        //    FileChanged = true;
-                        //}
+                        if (CheckFile.CreateTime != CreationTime)
+                        {
+                            Console.WriteLine(i + " -- Creation Time Changed. Updating Entry!");
+                            CurrentEntry.CreateTime = CreationTime;
+                            FileChanged = true;
+                        }
+                        if (CheckFile.LastWrite != LastWriteTime)
+                        {
+                            Console.WriteLine(i + " -- Last Write Time Changed. Updating Entry!");
+                            CurrentEntry.LastWrite = LastWriteTime;
+                            FileChanged = true;
+                        }
                         if (CheckFile.FileSize != FileSize)
                         {
                             SLC(i + " -- Wrong File Size. Updating Entry!", true);
                             CurrentEntry.FileSize = FileSize;
                             FileChanged = true;
                         }
-
-                        string s = GetHash(FileList[i], FileCount);
-                        if (CheckFile.SHA1Hash != s)
-                        {
-                            SLC(i + " -- Hashes do not match. Updating Entry!", true);
-                            CurrentEntry.SHA1Hash = s;
-                            FileChanged = true;
-                        }
-
                         if (FileChanged == true)
                         {
+                            string s = GetHash(FileList[i], FileCount);
+                            CurrentEntry.SHA1Hash = s;
                             FromCheckFile[Convert.ToInt32(CheckFile.Index)] = CurrentEntry;
                         }
                     }
                     else
                     {
-                        //if (CheckFile.CreateTime != CreationTime)
-                        //{
-                        //    Console.WriteLine(i + " -- Creation Time Changed");
-                        //}
-                        //if (CheckFile.LastWrite != LastWriteTime)
-                        //{
-                        //    Console.WriteLine(i + " -- Last Write Time Changed");
-                        //}
+                        if (CheckFile.CreateTime != CreationTime)
+                        {
+                            Console.WriteLine(i + " -- Creation Time Changed");
+                        }
+                        if (CheckFile.LastWrite != LastWriteTime)
+                        {
+                            Console.WriteLine(i + " -- Last Write Time Changed");
+                        }
                         if (CheckFile.FileSize != FileSize)
                         {
                             SLC(i + " -- Wrong File Size, skipping SHA1", true);
@@ -323,6 +264,8 @@ namespace hashcheck
                 File.Move(InputFile + ".temp", InputFile);
             }
             Console.WriteLine("Finished.");
+            Console.WriteLine();
+            Console.WriteLine();
         }
 
         struct Data
