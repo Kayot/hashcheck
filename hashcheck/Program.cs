@@ -13,7 +13,7 @@ namespace hashcheck
         {
             if (args.Length < 3)
             {
-                Console.WriteLine("Hash Check v0.2");
+                Console.WriteLine("Hash Check v0.3");
                 Console.WriteLine("Usage: hashcheck [action] [target]");
                 Console.WriteLine("");
                 Console.WriteLine("-cf\t--create-file\t[filename]\t\tCreates a check file");
