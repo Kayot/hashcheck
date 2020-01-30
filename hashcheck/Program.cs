@@ -24,39 +24,19 @@ namespace hashcheck
             {
                 if (args[0] == "-cf" || args[0] == "--create-file")
                 {
-                    if (!Directory.Exists(args[2]))
-                    {
-                        Console.WriteLine("Directory Not Found.");
-                        return 1;
-                    }
+                    if (!Directory.Exists(args[2])) { Console.WriteLine("Directory Not Found."); return 2; }
                     DoWork(args[1], args[2], Mode.Create);
                 }
                 if (args[0] == "-vf" || args[0] == "--verify-file")
                 {
-                    if (!File.Exists(args[1]))
-                    {
-                        Console.WriteLine("Check File Not Found.");
-                        return 1;
-                    }
-                    if (!Directory.Exists(args[2]))
-                    {
-                        Console.WriteLine("Directory Not Found.");
-                        return 1;
-                    }
+                    if (!File.Exists(args[1])) { Console.WriteLine("Check File Not Found."); return 1; }
+                    if (!Directory.Exists(args[2])) { Console.WriteLine("Directory Not Found."); return 2; }
                     DoWork(args[1], args[2], Mode.Verify);
                 }
                 if (args[0] == "-uf" || args[0] == "--update-file")
                 {
-                    if (!File.Exists(args[1]))
-                    {
-                        Console.WriteLine("Check File Not Found.");
-                        return 1;
-                    }
-                    if (!Directory.Exists(args[2]))
-                    {
-                        Console.WriteLine("Directory Not Found.");
-                        return 1;
-                    }
+                    if (!File.Exists(args[1])) { Console.WriteLine("Check File Not Found."); return 1; }
+                    if (!Directory.Exists(args[2])) { Console.WriteLine("Directory Not Found."); return 2; }
                     DoWork(args[1], args[2], Mode.Update);
                 }
             }
@@ -73,14 +53,7 @@ namespace hashcheck
         static void SLC(string Output, bool EndWithNewLine = false)
         {
             Console.Write("\r" + new string(' ', Console.WindowWidth) + "\r");
-            if (EndWithNewLine)
-            {
-                Console.WriteLine(Output);
-            }
-            else
-            {
-                Console.Write(Output);
-            }
+            if (EndWithNewLine) { Console.WriteLine(Output); } else { Console.Write(Output); }
         }
 
         static void DoWork(string InputFile, string Folder, Mode RunningMode)
@@ -194,18 +167,9 @@ namespace hashcheck
                     }
                     if (RunningMode == Mode.Verify)
                     {
-                        if (CheckFile.CreateTime != CreationTime)
-                        {
-                            Console.WriteLine(i + " -- Creation Time Changed");
-                        }
-                        if (CheckFile.LastWrite != LastWriteTime)
-                        {
-                            Console.WriteLine(i + " -- Last Write Time Changed");
-                        }
-                        if (CheckFile.FileSize != FileSize)
-                        {
-                            SLC(i + " -- Wrong File Size, skipping SHA1", true);
-                        }
+                        if (CheckFile.CreateTime != CreationTime) { Console.WriteLine(i + " -- Creation Time Changed"); }
+                        if (CheckFile.LastWrite != LastWriteTime) { Console.WriteLine(i + " -- Last Write Time Changed"); }
+                        if (CheckFile.FileSize != FileSize) { SLC(i + " -- Wrong File Size, skipping SHA1", true); }
                         else
                         {
                             string s = GetHash(FileList[i], FileCount);
@@ -355,7 +319,7 @@ namespace hashcheck
                     if (PercentCheck != Math.Round(Percent, 2))
                     {
                         PercentCheck = Math.Round(Percent, 2);
-                        Console.Write("\r" + Math.Round(Percent, 2).ToString().PadLeft(6));
+                        Console.Write("\r" + Math.Round(Percent, 2).ToString().PadLeft(6) + "\r");
                     }
                 }
             }
