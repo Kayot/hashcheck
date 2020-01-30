@@ -9,77 +9,65 @@ namespace hashcheck
 {
     class Program
     {
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
             if (args.Length < 3)
             {
                 Console.WriteLine("Hash Check v0.2");
                 Console.WriteLine("Usage: hashcheck [action] [target]");
                 Console.WriteLine("");
-                Console.WriteLine("-cf [filename]\t\tCreates a check file");
-                Console.WriteLine("-vf [filename]\t\tChecks a check file");
-                Console.WriteLine("-uf [filename]\t\tUpdates a check file (Removes missing, adds new)");
+                Console.WriteLine("-cf\t--create-file\t[filename]\t\tCreates a check file");
+                Console.WriteLine("-vf\t--verify-file\t[filename]\t\tChecks a check file");
+                Console.WriteLine("-uf\t--update-file\t[filename]\t\tUpdates a check file (Removes missing, adds new)");
             }
             if (args.Length == 3)
             {
-                if (args[0] == "-cf")
+                if (args[0] == "-cf" || args[0] == "--create-file")
                 {
-                    GetAllHashes(args[2], args[1]);
+                    if (!Directory.Exists(args[2]))
+                    {
+                        Console.WriteLine("Directory Not Found.");
+                        return 1;
+                    }
+                    DoWork(args[1], args[2], Mode.Create);
                 }
-                if (args[0] == "-vf")
+                if (args[0] == "-vf" || args[0] == "--verify-file")
                 {
-                    VerifyAllHashes(args[2], args[1], false);
+                    if (!File.Exists(args[1]))
+                    {
+                        Console.WriteLine("Check File Not Found.");
+                        return 1;
+                    }
+                    if (!Directory.Exists(args[2]))
+                    {
+                        Console.WriteLine("Directory Not Found.");
+                        return 1;
+                    }
+                    DoWork(args[1], args[2], Mode.Verify);
                 }
-
-                if (args[0] == "-uf")
+                if (args[0] == "-uf" || args[0] == "--update-file")
                 {
-                    VerifyAllHashes(args[2], args[1], true);
+                    if (!File.Exists(args[1]))
+                    {
+                        Console.WriteLine("Check File Not Found.");
+                        return 1;
+                    }
+                    if (!Directory.Exists(args[2]))
+                    {
+                        Console.WriteLine("Directory Not Found.");
+                        return 1;
+                    }
+                    DoWork(args[1], args[2], Mode.Update);
                 }
             }
+            return 0;
         }
 
-        static void GetAllHashes(string Folder, string OutputFile)
+        enum Mode
         {
-            Console.WriteLine("Getting File List...");
-            List<string> FileList = GetAllFiles(Folder);
-            Console.WriteLine("Creating SHA1 Hashes...");
-            if (!OutputFile.Contains(Path.DirectorySeparatorChar))
-            {
-                OutputFile = Directory.GetCurrentDirectory() + Path.DirectorySeparatorChar + OutputFile;
-            }
-            using (FileStream OutFile = new FileStream(OutputFile, mode: FileMode.Create))
-            {
-                using (StreamWriter OutPut = new StreamWriter(OutFile))
-                {
-                    int Padding = FileList.Count.ToString().Length;
-                    string RightSide = "/" + FileList.Count.ToString().PadLeft(Padding);
-                    for (int i = 0; i < FileList.Count; i++)
-                    {
-                        FileInfo CurrentFile = new FileInfo(FileList[i]);
-                        string FileCount = i.ToString().PadLeft(Padding) + RightSide;
-
-                        if (CurrentFile.FullName != OutputFile)
-                        {
-                            try
-                            {
-                                string CreateTime = CurrentFile.CreationTime.ToUniversalTime().ToString("yyyyMMddHHmmss");
-                                string LastWrite = CurrentFile.LastWriteTime.ToUniversalTime().ToString("yyyyMMddHHmmss");
-                                long FileSize = CurrentFile.Length;
-                                string HashString = GetHash(FileList[i], FileCount);
-                                OutPut.WriteLine(CreateTime + LastWrite + HashString + FileSize + "\t" + FileList[i].Replace(Folder + Path.DirectorySeparatorChar, ""));
-                                OutPut.Flush();
-                            }
-                            catch (Exception)
-                            {
-                                Console.WriteLine("Unable to open file: " + i);
-                            }
-                        }
-                    }
-                }
-            }
-            Console.WriteLine("Complete.");
-            Console.WriteLine();
-            Console.WriteLine();
+            Create,
+            Update,
+            Verify
         }
 
         static void SLC(string Output, bool EndWithNewLine = false)
@@ -95,64 +83,67 @@ namespace hashcheck
             }
         }
 
-
-        static void VerifyAllHashes(string Folder, string InputFile, bool UpdateMode)
+        static void DoWork(string InputFile, string Folder, Mode RunningMode)
         {
-            List<Data> FromCheckFile = new List<Data>();
-            Console.WriteLine("Loading Check File...");
-            using (FileStream InFile = new FileStream(InputFile, mode: FileMode.Open))
-            {
-                using (StreamReader InStream = new StreamReader(InFile))
-                {
-                    int LineIndex = 0;
-                    while (!InStream.EndOfStream)
-                    {
-                        string Line = InStream.ReadLine();
-                        string[] Sections = Line.Split("\t");
-                        if (Sections.Length == 2)
-                        {
-                            Data x = new Data();
-                            x.CreateTime = Sections[0].Substring(0, 14);
-                            x.LastWrite = Sections[0].Substring(14, 14);
-                            x.SHA1Hash = Sections[0].Substring(28, 40);
-                            x.FileSize = Convert.ToInt64(Sections[0].Substring(68));
-                            x.FileName = Folder + Path.DirectorySeparatorChar + Sections[1].Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
-                            x.Index = LineIndex;
-                            int TestLength = Encoding.UTF8.GetBytes(("Loaded: " + x.FileName)).Length;
-                            if (TestLength >= Console.WindowWidth)
-                            {
-                                string TestString = ("Loaded: " + x.FileName);
-                                int Diff = TestLength - Console.WindowWidth;
-                                SLC(TestString.Substring(0, TestString.Length - Diff));
-                            }
-                            else
-                            {
-                                SLC("Loaded: " + x.FileName);
-                            }
-                            FromCheckFile.Add(x);
-                            LineIndex++;
-                        }
-                    }
-                    SLC("Finished Loading Check.", true);
-                }
-            }
             Console.WriteLine("Getting File List...");
             List<string> FileList = GetAllFiles(Folder);
-            for (int i = 0; i < FromCheckFile.Count; i++)
+            Console.WriteLine();
+            List<Data> FromCheckFile = new List<Data>();
+            if (RunningMode == Mode.Update || RunningMode == Mode.Verify)
             {
-                bool FileExistsInFileSystem = FileList.Contains(FromCheckFile[i].FileName);
-                if (!FileExistsInFileSystem)
+                Console.WriteLine("Loading Check File...");
+                using (FileStream InFile = new FileStream(InputFile, mode: FileMode.Open))
                 {
-                    if (UpdateMode)
+                    using (StreamReader InStream = new StreamReader(InFile))
                     {
-                        SLC(FromCheckFile[i].FileName + " -- Does not exist in file system, removing entry!", true);
-                        Data x = FromCheckFile[i];
-                        x.FileName = "--DELETED--";
-                        FromCheckFile[i] = x;
+                        int LineIndex = 0;
+                        while (!InStream.EndOfStream)
+                        {
+                            string Line = InStream.ReadLine();
+                            string[] Sections = Line.Split("\t");
+                            if (Sections.Length == 2)
+                            {
+                                Data x = new Data();
+                                x.CreateTime = Sections[0].Substring(0, 14);
+                                x.LastWrite = Sections[0].Substring(14, 14);
+                                x.SHA1Hash = Sections[0].Substring(28, 40);
+                                x.FileSize = Convert.ToInt64(Sections[0].Substring(68));
+                                x.FileName = Folder + Path.DirectorySeparatorChar + Sections[1].Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+                                x.Index = LineIndex;
+                                int TestLength = Encoding.UTF8.GetBytes(("Loaded: " + x.FileName)).Length;
+                                if (TestLength >= Console.WindowWidth)
+                                {
+                                    string TestString = ("Loaded: " + x.FileName);
+                                    int Diff = TestLength - Console.WindowWidth;
+                                    SLC(TestString.Substring(0, TestString.Length - Diff));
+                                }
+                                else
+                                {
+                                    SLC("Loaded: " + x.FileName);
+                                }
+                                FromCheckFile.Add(x);
+                                LineIndex++;
+                            }
+                        }
+                        SLC("Finished Loading Check.", true);
                     }
-                    else
+                }
+                for (int i = 0; i < FromCheckFile.Count; i++)
+                {
+                    bool FileExistsInFileSystem = FileList.Contains(FromCheckFile[i].FileName);
+                    if (!FileExistsInFileSystem)
                     {
-                        SLC(FromCheckFile[i].FileName + " -- Does not exist in file system", true);
+                        if (RunningMode == Mode.Update)
+                        {
+                            SLC(FromCheckFile[i].FileName + " -- Does not exist in file system, removing entry!", true);
+                            Data x = FromCheckFile[i];
+                            x.FileName = "--DELETED--";
+                            FromCheckFile[i] = x;
+                        }
+                        else
+                        {
+                            SLC(FromCheckFile[i].FileName + " -- Does not exist in file system", true);
+                        }
                     }
                 }
             }
@@ -161,15 +152,18 @@ namespace hashcheck
             for (int i = 0; i < FileList.Count; i++)
             {
                 FileInfo CurrentFile = new FileInfo(FileList[i]);
-                Data CheckFile = FromCheckFile.Where(t => t.FileName == FileList[i]).FirstOrDefault();
+                Data CheckFile = new Data();
+                if (RunningMode == Mode.Update || RunningMode == Mode.Verify)
+                {
+                    CheckFile = FromCheckFile.Where(t => t.FileName == FileList[i]).FirstOrDefault();
+                }
                 string CreationTime = CurrentFile.CreationTime.ToUniversalTime().ToString("yyyyMMddHHmmss");
                 string LastWriteTime = CurrentFile.LastWriteTime.ToUniversalTime().ToString("yyyyMMddHHmmss");
                 long FileSize = CurrentFile.Length;
-
                 string FileCount = i.ToString().PadLeft(Padding) + RightSide;
                 if (CheckFile.FileName != null)
                 {
-                    if (UpdateMode)
+                    if (RunningMode == Mode.Update)
                     {
                         Data CurrentEntry = FromCheckFile[Convert.ToInt32(CheckFile.Index)];
                         bool FileChanged = false;
@@ -198,7 +192,7 @@ namespace hashcheck
                             FromCheckFile[Convert.ToInt32(CheckFile.Index)] = CurrentEntry;
                         }
                     }
-                    else
+                    if (RunningMode == Mode.Verify)
                     {
                         if (CheckFile.CreateTime != CreationTime)
                         {
@@ -224,9 +218,8 @@ namespace hashcheck
                 }
                 else
                 {
-                    if (UpdateMode)
+                    void CreateEntry()
                     {
-                        SLC(i + " -- Does not exist in Check file. Adding!", true);
                         Data PushtoArray = new Data();
                         PushtoArray.CreateTime = CreationTime;
                         PushtoArray.FileName = FileList[i];
@@ -235,16 +228,23 @@ namespace hashcheck
                         PushtoArray.SHA1Hash = GetHash(FileList[i], FileCount);
                         FromCheckFile.Add(PushtoArray);
                     }
-                    else
+                    if (RunningMode == Mode.Create)
+                    {
+                        CreateEntry();
+                    }
+                    if (RunningMode == Mode.Update)
+                    {
+                        SLC(i + " -- Does not exist in Check file. Adding!", true);
+                        CreateEntry();
+                    }
+                    if (RunningMode == Mode.Verify)
                     {
                         SLC(i + " -- Does not exist in Check file", true);
                     }
                 }
             }
-
-            if (UpdateMode)
+            void CreateCheckFile()
             {
-                Console.WriteLine("Rebuilding Check File");
                 using (FileStream OutFile = new FileStream(InputFile + ".temp", mode: FileMode.Create))
                 {
                     using (StreamWriter OutPut = new StreamWriter(OutFile))
@@ -260,8 +260,18 @@ namespace hashcheck
                     }
                 }
                 if (File.Exists(InputFile + ".bak")) { File.Delete(InputFile + ".bak"); }
-                File.Move(InputFile, InputFile + ".bak");
+                if (File.Exists(InputFile + ".hash")) { File.Move(InputFile, InputFile + ".bak"); }
                 File.Move(InputFile + ".temp", InputFile);
+            }
+            if (RunningMode == Mode.Update)
+            {
+                Console.WriteLine("Rebuilding Check File");
+                CreateCheckFile();
+            }
+            if (RunningMode == Mode.Create)
+            {
+                Console.WriteLine("Creating Check File");
+                CreateCheckFile();
             }
             Console.WriteLine("Finished.");
             Console.WriteLine();
@@ -285,6 +295,7 @@ namespace hashcheck
             foreach (string directory in Directory.GetDirectories(startLocation))
             {
                 Files.AddRange(GetAllFiles(directory));
+                SLC(Files.Count + " : Files Found");
             }
             return Files;
         }
@@ -318,15 +329,12 @@ namespace hashcheck
 
         static byte[] ComputeHash(Stream stream, HashAlgorithm hashAlgorithm, string Filename)
         {
-
             const int bufferLength = 0x1000;
             byte[] buffer = new byte[bufferLength * 2 + 1];
             int readAheadBytesRead, offset;
-
             long TotalLength = stream.Length;
             long CurrentPosition = 0;
             decimal PercentCheck = 0;
-
             if (stream.Position != 0 && stream.CanSeek) { stream.Seek(0, SeekOrigin.Begin); }
             hashAlgorithm.Initialize();
             for (int i = 0; ; i++)
@@ -336,17 +344,14 @@ namespace hashcheck
                 if (readAheadBytesRead == 0)
                 {
                     hashAlgorithm.TransformFinalBlock(buffer, offset, readAheadBytesRead);
-                    Console.Write("\r100.00%");
+                    Console.Write("\r100.00%\r");
                     return hashAlgorithm.Hash;
                 }
                 else
                 {
                     hashAlgorithm.TransformBlock(buffer, offset, readAheadBytesRead, buffer, offset);
-
                     decimal Percent = (Convert.ToDecimal(CurrentPosition) / TotalLength * 100);
-
                     CurrentPosition += bufferLength;
-
                     if (PercentCheck != Math.Round(Percent, 2))
                     {
                         PercentCheck = Math.Round(Percent, 2);
