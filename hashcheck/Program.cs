@@ -59,7 +59,8 @@ namespace hashcheck
         static void DoWork(string InputFile, string Folder, Mode RunningMode)
         {
             Console.WriteLine("Getting File List...");
-            List<string> FileList = GetAllFiles(Folder);
+            //List<string> FileList = 
+            GetAllFiles(Folder);
             Console.WriteLine();
             List<Data> FromCheckFile = new List<Data>();
             if (RunningMode == Mode.Update || RunningMode == Mode.Verify)
@@ -252,16 +253,18 @@ namespace hashcheck
             public string SHA1Hash { get; set; }
         }
 
-        private static List<string> GetAllFiles(string startLocation)
+        static List<string> FileList = new List<string>();
+
+        private static void GetAllFiles(string startLocation)
         {
-            List<string> Files = new List<string>();
-            Files.AddRange(Directory.GetFiles(startLocation));
+            FileList.AddRange(Directory.GetFiles(startLocation));
             foreach (string directory in Directory.GetDirectories(startLocation))
             {
-                Files.AddRange(GetAllFiles(directory));
-                SLC(Files.Count + " : Files Found");
+                GetAllFiles(directory);
+                //FileList.AddRange(GetAllFiles(directory));
+                SLC(FileList.Count + " : Files Found");
             }
-            return Files;
+            //return Files;
         }
 
         static string GetHash(string Filename, string FileStatus)
