@@ -282,7 +282,7 @@ namespace hashcheck
             using (FileStream SourceStream = File.Open(Filename, FileMode.Open))
             {
                 SHA1 x = new SHA1Managed();
-                ResultBytes = ComputeHash(SourceStream, x, Filename);
+                ResultBytes = ComputeHash(SourceStream, x);
             }
             foreach (byte b in ResultBytes)
             {
@@ -291,7 +291,7 @@ namespace hashcheck
             return s.ToString();
         }
 
-        static byte[] ComputeHash(Stream stream, HashAlgorithm hashAlgorithm, string Filename)
+        static byte[] ComputeHash(Stream stream, HashAlgorithm hashAlgorithm)
         {
             const int bufferLength = 0x1000;
             byte[] buffer = new byte[bufferLength * 2 + 1];
