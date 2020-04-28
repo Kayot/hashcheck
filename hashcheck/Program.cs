@@ -13,7 +13,7 @@ namespace hashcheck
         {
             if (args.Length < 3)
             {
-                Console.WriteLine("Hash Check v0.3");
+                Console.WriteLine("Hash Check v0.3.1");
                 Console.WriteLine("Usage: hashcheck [action] [target]");
                 Console.WriteLine("");
                 Console.WriteLine("-cf\t--create-file\t[filename]\t\tCreates a check file");
@@ -142,19 +142,19 @@ namespace hashcheck
                         bool FileChanged = false;
                         if (CheckFile.CreateTime != CreationTime)
                         {
-                            Console.WriteLine(i + " -- Creation Time Changed. Updating Entry!");
+                            Console.WriteLine(FileList[i] + " -- Creation Time Changed. Updating Entry!");
                             CurrentEntry.CreateTime = CreationTime;
                             FileChanged = true;
                         }
                         if (CheckFile.LastWrite != LastWriteTime)
                         {
-                            Console.WriteLine(i + " -- Last Write Time Changed. Updating Entry!");
+                            Console.WriteLine(FileList[i] + " -- Last Write Time Changed. Updating Entry!");
                             CurrentEntry.LastWrite = LastWriteTime;
                             FileChanged = true;
                         }
                         if (CheckFile.FileSize != FileSize)
                         {
-                            SLC(i + " -- Wrong File Size. Updating Entry!", true);
+                            SLC(FileList[i] + " -- Wrong File Size. Updating Entry!", true);
                             CurrentEntry.FileSize = FileSize;
                             FileChanged = true;
                         }
@@ -169,13 +169,13 @@ namespace hashcheck
                     {
                         if (CheckFile.CreateTime != CreationTime) { Console.WriteLine(i + " -- Creation Time Changed"); }
                         if (CheckFile.LastWrite != LastWriteTime) { Console.WriteLine(i + " -- Last Write Time Changed"); }
-                        if (CheckFile.FileSize != FileSize) { SLC(i + " -- Wrong File Size, skipping SHA1", true); }
+                        if (CheckFile.FileSize != FileSize) { SLC(FileList[i] + " -- Wrong File Size, skipping SHA1", true); }
                         else
                         {
                             string s = GetHash(FileList[i], FileCount);
                             if (CheckFile.SHA1Hash != s)
                             {
-                                SLC(i + " -- Hashes do not match", true);
+                                SLC(FileList[i] + " -- Hashes do not match", true);
                             }
                         }
                     }
@@ -198,12 +198,12 @@ namespace hashcheck
                     }
                     if (RunningMode == Mode.Update)
                     {
-                        SLC(i + " -- Does not exist in Check file. Adding!", true);
+                        SLC(FileList[i] + " -- Does not exist in Check file. Adding!", true);
                         CreateEntry();
                     }
                     if (RunningMode == Mode.Verify)
                     {
-                        SLC(i + " -- Does not exist in Check file", true);
+                        SLC(FileList[i] + " -- Does not exist in Check file", true);
                     }
                 }
             }
@@ -224,7 +224,7 @@ namespace hashcheck
                     }
                 }
                 if (File.Exists(InputFile + ".bak")) { File.Delete(InputFile + ".bak"); }
-                if (File.Exists(InputFile + ".hash")) { File.Move(InputFile, InputFile + ".bak"); }
+                if (File.Exists(InputFile)) { File.Move(InputFile, InputFile + ".bak"); }
                 File.Move(InputFile + ".temp", InputFile);
             }
             if (RunningMode == Mode.Update)

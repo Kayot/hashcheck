@@ -2,7 +2,7 @@
   "profiles": {
     "hashcheck": {
       "commandName": "Project",
-      "commandLineArgs": "-cf x:\\Graphics.hash x:\\Graphics"
+      "commandLineArgs": "-uf y:\\Applications.hash x:\\Applications"
     }
   }
 }
