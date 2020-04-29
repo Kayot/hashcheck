@@ -2,8 +2,10 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Security.Cryptography;
 using System.Text;
+using System.Xml;
 
 namespace hashcheck
 {
@@ -13,14 +15,15 @@ namespace hashcheck
         {
             if (args.Length < 3)
             {
-                Console.WriteLine("Hash Check v0.3.1");
+                Console.WriteLine("Hash Check v0.3.2");
                 Console.WriteLine("Usage: hashcheck [action] [target]");
                 Console.WriteLine("");
-                Console.WriteLine("-cf\t--create-file\t[filename]\t\tCreates a check file");
-                Console.WriteLine("-vf\t--verify-file\t[filename]\t\tChecks a check file");
-                Console.WriteLine("-uf\t--update-file\t[filename]\t\tUpdates a check file (Removes missing, adds new)");
+                Console.WriteLine("-cf\t--create-file\t\t[filename]\t\tCreates a check file");
+                Console.WriteLine("-vf\t--verify-file\t\t[filename]\t\tChecks a check file");
+                Console.WriteLine("-uf\t--update-file\t\t[filename]\t\tUpdates a check file (Removes missing, adds new)");
+                Console.WriteLine("-cd\t--check-duplicates\t[filename]\t\tChecks hash files for duplicates (Can add more than one) and outputs to target");
             }
-            if (args.Length == 3)
+            if (args.Length >= 3)
             {
                 if (args[0] == "-cf" || args[0] == "--create-file")
                 {
@@ -39,8 +42,73 @@ namespace hashcheck
                     if (!Directory.Exists(args[2])) { Console.WriteLine("Directory Not Found."); return 2; }
                     DoWork(args[1], args[2], Mode.Update);
                 }
+
+                if (args[0] == "-cd" || args[0] == "--check-duplicates")
+                {
+                    CheckForDuplicates(args[1..^1], args[^1]);
+                }
             }
             return 0;
+        }
+
+        static void CheckForDuplicates(string[] FileList, string OutputFileName)
+        {
+            List<(long FileSize, string Hash, string FileName, string HashName)> FileData = new List<(long FileSize, string Hash, string FileName, string HashName)>();
+            foreach (string item in FileList)
+            {
+                string[] FileLines = File.ReadAllLines(item);
+                foreach (string Line in FileLines)
+                {
+                    string Hash = Line.Substring(28, 40);
+                    string[] x = Line.Substring(68).Split('\t');
+                    long FileSize = Convert.ToInt64(x[0]);
+                    string FileName = x[1];
+                    if (FileSize > 0)
+                    {
+                        FileData.Add((FileSize, Hash, FileName, item));
+                    }
+                }
+            }
+            FileData = FileData.OrderByDescending(t => t.FileSize).ThenBy(t => t.Hash).ThenBy(t => t.FileName).ToList();
+            List<(long FileSize, string Hash, string FileName, string HashName)> DupItems = new List<(long FileSize, string Hash, string FileName, string HashName)>();
+            StringBuilder Output = new StringBuilder();
+            void OutToOutput()
+            {
+                Output.AppendLine($"-- Duplicate -- Size = '{DupItems[0].FileSize}' -- Hash = '{DupItems[0].Hash}'");
+                foreach ((long FileSize, string Hash, string FileName, string HashName) in DupItems)
+                {
+                    Output.AppendLine(HashName + ": " + FileName);
+                }
+                Output.AppendLine();
+                DupItems.Clear();
+            }
+            for (int i = 0; i < FileData.Count; i++)
+            {
+                if (i < FileData.Count - 1)
+                {
+                    if (FileData[i].FileSize == FileData[i + 1].FileSize && FileData[i].Hash == FileData[i + 1].Hash)
+                    {
+                        DupItems.Add(FileData[i]);
+                    }
+                    else
+                    {
+                        if (DupItems.Count > 0)
+                        {
+                            DupItems.Add(FileData[i]);
+                            OutToOutput();
+                        }
+                    }
+                }
+                else
+                {
+                    if (DupItems.Count > 0)
+                    {
+                        DupItems.Add(FileData[i]);
+                        OutToOutput();
+                    }
+                }
+            }
+            File.WriteAllText(OutputFileName, Output.ToString());
         }
 
         enum Mode
@@ -122,6 +190,7 @@ namespace hashcheck
             }
             int Padding = FileList.Count.ToString().Length;
             string RightSide = "/" + FileList.Count.ToString().PadLeft(Padding);
+            bool Scanning = false;
             for (int i = 0; i < FileList.Count; i++)
             {
                 FileInfo CurrentFile = new FileInfo(FileList[i]);
@@ -160,9 +229,23 @@ namespace hashcheck
                         }
                         if (FileChanged == true)
                         {
+                            Scanning = false;
                             string s = GetHash(FileList[i], FileCount);
                             CurrentEntry.SHA1Hash = s;
                             FromCheckFile[Convert.ToInt32(CheckFile.Index)] = CurrentEntry;
+                        }
+                        else
+                        {
+                            if (Scanning)
+                            {
+                                Console.CursorLeft = 10;
+                                Console.Write(i.ToString().PadLeft(Padding));
+                            }
+                            else
+                            {
+                                Console.Write("Scanning: " + FileCount);
+                            }
+                            Scanning = true;
                         }
                     }
                     if (RunningMode == Mode.Verify)
@@ -229,14 +312,17 @@ namespace hashcheck
             }
             if (RunningMode == Mode.Update)
             {
+                Console.WriteLine();
                 Console.WriteLine("Rebuilding Check File");
                 CreateCheckFile();
             }
             if (RunningMode == Mode.Create)
             {
+                Console.WriteLine();
                 Console.WriteLine("Creating Check File");
                 CreateCheckFile();
             }
+            Console.WriteLine();
             Console.WriteLine("Finished.");
             Console.WriteLine();
             Console.WriteLine();

@@ -2,7 +2,7 @@
   "profiles": {
     "hashcheck": {
       "commandName": "Project",
-      "commandLineArgs": "-uf y:\\Applications.hash x:\\Applications"
+      "commandLineArgs": "-cd y:\\Books.hash y:\\BooksDupCheck.txt"
     }
   }
 }
