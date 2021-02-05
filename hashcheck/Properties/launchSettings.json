@@ -2,7 +2,7 @@
   "profiles": {
     "hashcheck": {
       "commandName": "Project",
-      "commandLineArgs": "-cd y:\\Books.hash y:\\BooksDupCheck.txt"
+      "commandLineArgs": "-uf Hentai.hash x:\\Hentai"
     }
   }
 }
