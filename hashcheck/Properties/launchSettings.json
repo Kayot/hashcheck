@@ -2,7 +2,7 @@
   "profiles": {
     "hashcheck": {
       "commandName": "Project",
-      "commandLineArgs": "-uf Hentai.hash x:\\Hentai"
+      "commandLineArgs": "-cdh Movies.hash Movies.dup"
     }
   }
 }

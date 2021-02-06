@@ -49,10 +49,9 @@ namespace hashcheck
 
         public static long GetFileId(this FileInfo fileInfo)
         {
-            //ls -i "Hentai/Hentai - Games/Install Only/Custom Maid 3D.7z" | grep "Custom Maid 3D.7z"
-            //ls -i "Hentai/Hentai - Games/Install Only/Custom Maid 3D.7z"
-            //318699 'Hentai/Hentai - Games/Install Only/Custom Maid 3D.7z'
             long INode = 0;
+            //try
+            //{
             OperatingSystem os = Environment.OSVersion;
             PlatformID pid = os.Platform;
             switch (pid)
@@ -61,9 +60,7 @@ namespace hashcheck
                 case PlatformID.Win32S:
                 case PlatformID.Win32Windows:
                 case PlatformID.WinCE: //Windows
-                    // Call "fsutil" to get the unique file id
-                    string output = InvokeShellAndGetOutput("fsutil", $"file queryfileid {fileInfo.FullName}");
-                    // Remove the following characters: "File ID is " and the EOL at the end. The remaining string is an hex string with the "0x" prefix.
+                    string output = InvokeShellAndGetOutput("fsutil", $"file queryfileid \"{fileInfo.FullName}\"");
                     string parsedOutput = output.Remove(0, 11).Trim();
                     INode = Convert.ToInt64(parsedOutput, 16);
                     break;
@@ -77,10 +74,9 @@ namespace hashcheck
                 default: //Other
                     break;
             }
+            //}
+            //catch (Exception) { }
             return INode;
         }
-
-
-
     }
 }

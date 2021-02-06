@@ -70,24 +70,33 @@ namespace hashcheck
 
         static void CheckForDuplicates(string[] FileList, string OutputFileName, CheckForDuplicatesMode Mode)
         {
-            List<(long FileSize, string Hash, string FileName, string HashName)> FileData = new List<(long FileSize, string Hash, string FileName, string HashName)>();
+            List<(long FileSize, string Hash, long INode, string FileName, string HashName)> FileData = new();
             foreach (string item in FileList)
             {
                 string[] FileLines = File.ReadAllLines(item);
+                bool IsHeader = true;
                 foreach (string Line in FileLines)
                 {
-                    string Hash = Line.Substring(28, 40);
-                    string[] x = Line.Substring(68).Split('\t');
-                    long FileSize = Convert.ToInt64(x[0]);
-                    string FileName = x[1];
-                    if (FileSize > 0)
+                    if (IsHeader)
                     {
-                        FileData.Add((FileSize, Hash, FileName, item));
+                        IsHeader = false;
+                    }
+                    else
+                    {
+                        string[] Sections = Line.Split("\t");
+                        long INode = Convert.ToInt64(Sections[4]);
+                        string Hash = Sections[2];
+                        long FileSize = Convert.ToInt64(Sections[3]);
+                        string FileName = Sections[5];
+                        if (FileSize > 0)
+                        {
+                            FileData.Add((FileSize, Hash, INode, FileName, item));
+                        }
                     }
                 }
             }
-            FileData = FileData.OrderByDescending(t => t.FileSize).ThenBy(t => t.Hash).ThenBy(t => t.FileName).ToList();
-            List<(long FileSize, string Hash, string FileName, string HashName)> DupItems = new List<(long FileSize, string Hash, string FileName, string HashName)>();
+            FileData = FileData.OrderByDescending(t => t.FileSize).ThenBy(t => t.Hash).ThenBy(t => t.INode).ThenBy(t => t.FileName).ToList();
+            List<(long FileSize, string Hash, long INode, string FileName, string HashName)> DupItems = new();
             StringBuilder Output = new();
             void OutToOutput()
             {
@@ -123,7 +132,7 @@ namespace hashcheck
             {
                 if (i < FileData.Count - 1)
                 {
-                    if (FileData[i].FileSize == FileData[i + 1].FileSize && FileData[i].Hash == FileData[i + 1].Hash)
+                    if (FileData[i].FileSize == FileData[i + 1].FileSize && FileData[i].Hash == FileData[i + 1].Hash && FileData[i].INode != FileData[i + 1].INode)
                     {
                         DupItems.Add(FileData[i]);
                     }
@@ -177,32 +186,34 @@ namespace hashcheck
                         using (StreamReader InStream = new(InFile))
                         {
                             int LineIndex = 0;
+                            bool IsHeader = true;
                             while (!InStream.EndOfStream)
                             {
-                                string Line = InStream.ReadLine();
-                                string[] Sections = Line.Split("\t");
-                                if (Sections.Length == 2)
+                                if (IsHeader)
                                 {
-                                    Data x = new Data();
-                                    x.CreateTime = Sections[0].Substring(0, 14);
-                                    x.LastWrite = Sections[0].Substring(14, 14);
-                                    x.SHA1Hash = Sections[0].Substring(28, 40);
-                                    x.FileSize = Convert.ToInt64(Sections[0].Substring(68));
-                                    x.FileName = Folder + Path.DirectorySeparatorChar + Sections[1].Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
-                                    x.Index = LineIndex;
-                                    SLC(("Loaded: " + x.FileName).Truncate(Console.WindowWidth));
-                                    FromCheckFile.Add(x);
-                                    LineIndex++;
+                                    string Line = InStream.ReadLine();
+                                    IsHeader = false;
                                 }
-                                //Temp, adding INode will make it 3 splits
-                                //I think I'll take the space hit and make the file tab delimited
-                                //If space becomes an issue, I'll compress the file
-
-
-
-
-
-
+                                else
+                                {
+                                    string Line = InStream.ReadLine();
+                                    string[] Sections = Line.Split("\t");
+                                    if (Sections.Length == 6)
+                                    {
+                                        Data x = new();
+                                        x.CreateTime = Sections[0];
+                                        x.LastWrite = Sections[1];
+                                        x.SHA1Hash = Sections[2];
+                                        x.FileSize = Convert.ToInt64(Sections[3]);
+                                        x.INode = Convert.ToInt64(Sections[4]);
+                                        //x.FileName = Sections[5];
+                                        x.FileName = Folder + Path.DirectorySeparatorChar + Sections[5].Replace('\\', Path.DirectorySeparatorChar).Replace('/', Path.DirectorySeparatorChar);
+                                        x.Index = LineIndex;
+                                        SLC(("Loaded: " + x.FileName).Truncate(Console.WindowWidth));
+                                        FromCheckFile.Add(x);
+                                        LineIndex++;
+                                    }
+                                }
                             }
                             SLC("Finished Loading Check.", true);
                         }
@@ -271,12 +282,22 @@ namespace hashcheck
                                 CurrentEntry.FileSize = FileSize;
                                 FileChanged = true;
                             }
-
-
-
-
-
-
+                            if (CheckFile.INode != INode)
+                            {
+                                //Fix Inode when -1, no reason to set it as a change(?)
+                                //if (CheckFile.INode == -1) //Means it was never set, used to fix new column
+                                //{
+                                CurrentEntry.INode = INode;
+                                FromCheckFile[Convert.ToInt32(CheckFile.Index)] = CurrentEntry;
+                                //}
+                                //else
+                                //{
+                                //    Console.WriteLine(FileList[i] + " -- INode Changed. Updating Entry!");
+                                //    WriteLog.WriteLine(FileList[i] + " -- INode Changed. Updating Entry!");
+                                //    CurrentEntry.INode = INode;
+                                //    FileChanged = true;
+                                //}
+                            }
                             if (FileChanged == true)
                             {
                                 Scanning = false;
@@ -362,11 +383,12 @@ namespace hashcheck
                     {
                         using (StreamWriter OutPut = new StreamWriter(OutFile))
                         {
+                            OutPut.WriteLine("CreateTime\tLastWrite\tSHA1Hash\tFileSize\tINode\tFileNameAndPath");
                             foreach (Data i in FromCheckFile)
                             {
                                 if (i.FileName != "--DELETED--")
                                 {
-                                    OutPut.WriteLine($"{i.CreateTime}{i.LastWrite}{i.SHA1Hash}{i.FileSize}\t{i.FileName.Replace(Folder + Path.DirectorySeparatorChar, "")}");
+                                    OutPut.WriteLine($"{i.CreateTime}\t{i.LastWrite}\t{i.SHA1Hash}\t{i.FileSize}\t{i.INode}\t{i.FileName.Replace(Folder + Path.DirectorySeparatorChar, "")}");
                                     OutPut.Flush();
                                 }
                             }
