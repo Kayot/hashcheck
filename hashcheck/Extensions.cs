@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -31,7 +32,7 @@ namespace hashcheck
 
         private static string InvokeShellAndGetOutput(string fileName, string arguments)
         {
-            Process p = new Process();
+            Process p = new();
             p.StartInfo.UseShellExecute = false;
             p.StartInfo.RedirectStandardOutput = true;
             p.StartInfo.FileName = fileName;
@@ -46,6 +47,9 @@ namespace hashcheck
         {
             windows, linux
         }
+
+        [DllImport("stat.so", CharSet = CharSet.Unicode, EntryPoint = "GetInode", CallingConvention = CallingConvention.Cdecl)]
+        static extern int GetInode([MarshalAs(UnmanagedType.LPStr)] StringBuilder FileName);
 
         public static long GetFileId(this FileInfo fileInfo)
         {
@@ -62,12 +66,14 @@ namespace hashcheck
                 case PlatformID.WinCE: //Windows
                     string output = InvokeShellAndGetOutput("fsutil", $"file queryfileid \"{fileInfo.FullName}\"");
                     string parsedOutput = output.Remove(0, 11).Trim();
-                    INode = Convert.ToInt64(parsedOutput, 16);
+                    //Sigh, a check for really long filenames that can't be read through normal means because of windows path limitations
+                    if (parsedOutput == "system cannot find the path specified.") { INode = -1; } else { INode = Convert.ToInt64(parsedOutput, 16); }
                     break;
                 case PlatformID.Unix: //Linux
-                    string output2 = InvokeShellAndGetOutput("ls", $"-i \"{fileInfo.FullName}\"");
-                    string x = output2.Split(' ')[0];
-                    INode = Convert.ToInt64(x);
+                    StringBuilder x1 = new();
+                    x1.Append(fileInfo.FullName);
+                    int test = GetInode(x1);
+                    INode = test;
                     break;
                 case PlatformID.MacOSX: //Mac
                     break;

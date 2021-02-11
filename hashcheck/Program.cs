@@ -1,9 +1,12 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Threading.Tasks;
+
 namespace hashcheck
 {
     class Program
@@ -98,6 +101,16 @@ namespace hashcheck
             FileData = FileData.OrderByDescending(t => t.FileSize).ThenBy(t => t.Hash).ThenBy(t => t.INode).ThenBy(t => t.FileName).ToList();
             List<(long FileSize, string Hash, long INode, string FileName, string HashName)> DupItems = new();
             StringBuilder Output = new();
+            Output.AppendLine("#!/bin/bash");
+            Output.AppendLine("check_dup() {");
+            Output.AppendLine("    if cmp --silent \"$1\" \"$2\"; then");
+            Output.AppendLine("        ln -f \"$1\" \"$2\"");
+            Output.AppendLine("        #echo \"Link Created!\"");
+            Output.AppendLine("    fi");
+            Output.AppendLine("}");
+            Output.AppendLine();
+
+
             void OutToOutput()
             {
                 //Output.AppendLine($"#  -- Duplicate -- Size = '{DupItems[0].FileSize}' -- Hash = '{DupItems[0].Hash}'");
@@ -109,14 +122,14 @@ namespace hashcheck
                         //Output.AppendLine("#  " + DupItems[i].HashName + ": " + DupItems[i].FileName);
                         if (i == 0)
                         {
-                            PrimaryFile = DupItems[i].FileName.Replace("'", "\'");
+                            PrimaryFile = DupItems[i].FileName.Replace(@"'", @"\'");
                             //Output.AppendLine($"# Primary File '{PrimaryFile}'");
                         }
                         if (i > 0)
                         {
                             //Output.AppendLine($"# File to Hardlink '{DupItems[i].FileName.Replace("'", "\'")}'");
                             //Output.AppendLine($"rm \"{DupItems[i].FileName.Replace("'", "\'")}\"");
-                            Output.AppendLine($"ln -f \"{PrimaryFile}\" \"{DupItems[i].FileName.Replace("'", "\'")}\"");
+                            Output.AppendLine($"check_dup $'{PrimaryFile}' $'{DupItems[i].FileName.Replace(@"'", @"\'")}'");
                         }
                     }
                     if (Mode == CheckForDuplicatesMode.Remove)
@@ -172,12 +185,13 @@ namespace hashcheck
 
         static void DoWork(string InputFile, string Folder, Mode RunningMode)
         {
+            List<(string CreationTime, string LastWriteTime, long INode, long FileSize, string FileName)> FileList = new();
             using (StreamWriter WriteLog = new("output.log", true))
             {
                 Console.WriteLine("Getting File List...");
-                GetAllFiles(Folder);
+                FileList = GetDirList(Folder);
                 Console.WriteLine();
-                List<Data> FromCheckFile = new();
+                List<HashFileData> FromCheckFile = new();
                 if (RunningMode == Mode.Update || RunningMode == Mode.Verify)
                 {
                     Console.WriteLine("Loading Check File...");
@@ -200,7 +214,7 @@ namespace hashcheck
                                     string[] Sections = Line.Split("\t");
                                     if (Sections.Length == 6)
                                     {
-                                        Data x = new();
+                                        HashFileData x = new();
                                         x.CreateTime = Sections[0];
                                         x.LastWrite = Sections[1];
                                         x.SHA1Hash = Sections[2];
@@ -220,14 +234,15 @@ namespace hashcheck
                     }
                     for (int i = 0; i < FromCheckFile.Count; i++)
                     {
-                        bool FileExistsInFileSystem = FileList.Contains(FromCheckFile[i].FileName);
+                        //bool FileExistsInFileSystem = FileList.Contains(FromCheckFile[i].FileName);
+                        bool FileExistsInFileSystem = FileList.Where(t => t.FileName == FromCheckFile[i].FileName).Any(); //This part takes forever, maybe theres a way to optimize it?
                         if (!FileExistsInFileSystem)
                         {
                             if (RunningMode == Mode.Update)
                             {
                                 SLC(FromCheckFile[i].FileName + " -- Does not exist in file system, removing entry!", true);
                                 WriteLog.WriteLine(FromCheckFile[i].FileName + " -- Does not exist in file system, removing entry!");
-                                Data x = FromCheckFile[i];
+                                HashFileData x = FromCheckFile[i];
                                 x.FileName = "--DELETED--";
                                 FromCheckFile[i] = x;
                             }
@@ -244,50 +259,49 @@ namespace hashcheck
                 bool Scanning = false;
                 for (int i = 0; i < FileList.Count; i++)
                 {
-                    FileInfo CurrentFile = new FileInfo(FileList[i]);
-                    Data CheckFile = new Data();
+
+                    HashFileData CheckFile = new();
                     if (RunningMode == Mode.Update || RunningMode == Mode.Verify)
                     {
-                        CheckFile = FromCheckFile.Where(t => t.FileName == FileList[i]).FirstOrDefault();
+                        CheckFile = FromCheckFile.Where(t => t.FileName == FileList[i].FileName).FirstOrDefault();
                     }
-                    string CreationTime = CurrentFile.CreationTime.ToUniversalTime().ToString("yyyyMMddHHmmss");
-                    string LastWriteTime = CurrentFile.LastWriteTime.ToUniversalTime().ToString("yyyyMMddHHmmss");
-                    long FileSize = CurrentFile.Length;
-                    long INode = CurrentFile.GetFileId();
+
+
                     string FileCount = i.ToString().PadLeft(Padding) + RightSide;
                     if (CheckFile.FileName != null)
                     {
                         if (RunningMode == Mode.Update)
                         {
-                            Data CurrentEntry = FromCheckFile[Convert.ToInt32(CheckFile.Index)];
+                            HashFileData CurrentEntry = FromCheckFile[Convert.ToInt32(CheckFile.Index)];
                             bool FileChanged = false;
-                            if (CheckFile.CreateTime != CreationTime)
+                            if (CheckFile.CreateTime != FileList[i].CreationTime)
                             {
                                 Console.WriteLine(FileList[i] + " -- Creation Time Changed. Updating Entry!");
                                 WriteLog.WriteLine(FileList[i] + " -- Creation Time Changed. Updating Entry!");
-                                CurrentEntry.CreateTime = CreationTime;
+                                CurrentEntry.CreateTime = FileList[i].CreationTime;
                                 FileChanged = true;
                             }
-                            if (CheckFile.LastWrite != LastWriteTime)
+                            if (CheckFile.LastWrite != FileList[i].LastWriteTime)
                             {
                                 Console.WriteLine(FileList[i] + " -- Last Write Time Changed. Updating Entry!");
                                 WriteLog.WriteLine(FileList[i] + " -- Last Write Time Changed. Updating Entry!");
-                                CurrentEntry.LastWrite = LastWriteTime;
+                                CurrentEntry.LastWrite = FileList[i].LastWriteTime;
                                 FileChanged = true;
                             }
-                            if (CheckFile.FileSize != FileSize)
+                            if (CheckFile.FileSize != FileList[i].FileSize)
                             {
                                 SLC(FileList[i] + " -- Wrong File Size. Updating Entry!", true);
                                 WriteLog.WriteLine(FileList[i] + " -- Wrong File Size. Updating Entry!");
-                                CurrentEntry.FileSize = FileSize;
+                                CurrentEntry.FileSize = FileList[i].FileSize;
                                 FileChanged = true;
                             }
-                            if (CheckFile.INode != INode)
+                            if (CheckFile.INode != FileList[i].INode)
+                            //if (CheckFile.INode <= 2)
                             {
                                 //Fix Inode when -1, no reason to set it as a change(?)
                                 //if (CheckFile.INode == -1) //Means it was never set, used to fix new column
                                 //{
-                                CurrentEntry.INode = INode;
+                                CurrentEntry.INode = FileList[i].INode;
                                 FromCheckFile[Convert.ToInt32(CheckFile.Index)] = CurrentEntry;
                                 //}
                                 //else
@@ -301,7 +315,7 @@ namespace hashcheck
                             if (FileChanged == true)
                             {
                                 Scanning = false;
-                                string s = GetHash(FileList[i], FileCount);
+                                string s = GetHash(FileList[i].FileName, FileCount);
                                 CurrentEntry.SHA1Hash = s;
                                 FromCheckFile[Convert.ToInt32(CheckFile.Index)] = CurrentEntry;
                             }
@@ -322,27 +336,27 @@ namespace hashcheck
                         }
                         if (RunningMode == Mode.Verify)
                         {
-                            if (CheckFile.CreateTime != CreationTime)
+                            if (CheckFile.CreateTime != FileList[i].CreationTime)
                             {
                                 Console.WriteLine(i + " -- Creation Time Changed");
                                 WriteLog.WriteLine(i + " -- Creation Time Changed");
                             }
-                            if (CheckFile.LastWrite != LastWriteTime)
+                            if (CheckFile.LastWrite != FileList[i].LastWriteTime)
                             {
                                 Console.WriteLine(i + " -- Last Write Time Changed");
                                 WriteLog.WriteLine(i + " -- Last Write Time Changed");
                             }
-                            if (CheckFile.FileSize != FileSize)
+                            if (CheckFile.FileSize != FileList[i].FileSize)
                             {
-                                SLC(FileList[i] + " -- Wrong File Size, skipping SHA1", true);
-                                WriteLog.WriteLine(FileList[i] + " -- Wrong File Size, skipping SHA1");
+                                SLC(FileList[i].FileName + " -- Wrong File Size, skipping SHA1", true);
+                                WriteLog.WriteLine(FileList[i].FileName + " -- Wrong File Size, skipping SHA1");
                             }
                             else
                             {
-                                string s = GetHash(FileList[i], FileCount);
+                                string s = GetHash(FileList[i].FileName, FileCount);
                                 if (CheckFile.SHA1Hash != s)
                                 {
-                                    SLC(FileList[i] + " -- Hashes do not match", true);
+                                    SLC(FileList[i].FileName + " -- Hashes do not match", true);
                                     WriteLog.WriteLine();
                                 }
                             }
@@ -352,12 +366,12 @@ namespace hashcheck
                     {
                         void CreateEntry()
                         {
-                            Data PushtoArray = new Data();
-                            PushtoArray.CreateTime = CreationTime;
-                            PushtoArray.FileName = FileList[i];
-                            PushtoArray.FileSize = FileSize;
-                            PushtoArray.LastWrite = LastWriteTime;
-                            PushtoArray.SHA1Hash = GetHash(FileList[i], FileCount);
+                            HashFileData PushtoArray = new HashFileData();
+                            PushtoArray.CreateTime = FileList[i].CreationTime;
+                            PushtoArray.FileName = FileList[i].FileName;
+                            PushtoArray.FileSize = FileList[i].FileSize;
+                            PushtoArray.LastWrite = FileList[i].LastWriteTime;
+                            PushtoArray.SHA1Hash = GetHash(FileList[i].FileName, FileCount);
                             FromCheckFile.Add(PushtoArray);
                         }
                         if (RunningMode == Mode.Create)
@@ -366,14 +380,14 @@ namespace hashcheck
                         }
                         if (RunningMode == Mode.Update)
                         {
-                            SLC(FileList[i] + " -- Does not exist in Check file. Adding!", true);
-                            WriteLog.WriteLine(FileList[i] + " -- Does not exist in Check file. Adding!");
+                            SLC(FileList[i].FileName + " -- Does not exist in Check file. Adding!", true);
+                            WriteLog.WriteLine(FileList[i].FileName + " -- Does not exist in Check file. Adding!");
                             CreateEntry();
                         }
                         if (RunningMode == Mode.Verify)
                         {
-                            SLC(FileList[i] + " -- Does not exist in Check file", true);
-                            WriteLog.WriteLine(FileList[i] + " -- Does not exist in Check file");
+                            SLC(FileList[i].FileName + " -- Does not exist in Check file", true);
+                            WriteLog.WriteLine(FileList[i].FileName + " -- Does not exist in Check file");
                         }
                     }
                 }
@@ -384,7 +398,7 @@ namespace hashcheck
                         using (StreamWriter OutPut = new StreamWriter(OutFile))
                         {
                             OutPut.WriteLine("CreateTime\tLastWrite\tSHA1Hash\tFileSize\tINode\tFileNameAndPath");
-                            foreach (Data i in FromCheckFile)
+                            foreach (HashFileData i in FromCheckFile)
                             {
                                 if (i.FileName != "--DELETED--")
                                 {
@@ -419,7 +433,7 @@ namespace hashcheck
 
         }
 
-        struct Data
+        struct HashFileData
         {
             public int Index { get; set; }
             public long INode { get; set; }
@@ -430,16 +444,15 @@ namespace hashcheck
             public string SHA1Hash { get; set; }
         }
 
-        static List<string> FileList = new List<string>();
-
-        private static void GetAllFiles(string startLocation)
+        struct FileSystemData
         {
-            FileList.AddRange(Directory.GetFiles(startLocation));
-            foreach (string directory in Directory.GetDirectories(startLocation))
-            {
-                GetAllFiles(directory);
-                SLC(FileList.Count + " : Files Found");
-            }
+            public int Index { get; set; }
+            public long INode { get; set; }
+            //public string FileName { get; set; }
+            public string LastWrite { get; set; }
+            public string CreateTime { get; set; }
+            public long FileSize { get; set; }
+            //public string SHA1Hash { get; set; }
         }
 
         static string GetHash(string Filename, string FileStatus)
@@ -494,5 +507,53 @@ namespace hashcheck
                 }
             }
         }
+
+       private static readonly BlockingCollection<DirectoryInfo> collection = new BlockingCollection<DirectoryInfo>();
+
+       static public List<(string CreationTime, string LastWriteTime, long INode, long FileSize, string FileName)> GetDirList(string path)
+        {
+
+            collection.Add(new DirectoryInfo(path));
+            Task.Factory.StartNew(() => CollectFolders(path));
+
+            List<(string CreationTime, string LastWriteTime, long INode, long FileSize, string FileName)> z = new List<(string CreationTime, string LastWriteTime, long INode, long FileSize, string FileName)>();
+
+            foreach (DirectoryInfo dir in collection.GetConsumingEnumerable())
+            {
+                FileInfo[] x = dir.GetFiles();
+                for (int i = 0; i < x.Length; i++)
+                {
+                    z.Add((
+                        x[i].CreationTime.ToUniversalTime().ToString("yyyyMMddHHmmss"),
+                        x[i].LastWriteTime.ToUniversalTime().ToString("yyyyMMddHHmmss"),
+                        x[i].GetFileId(),
+                        x[i].Length,
+                        x[i].FullName
+                    ));
+                }
+
+                SLC(z.Count + " : Files Found");
+            }
+            return z;
+        }
+
+       static public void CollectFolders(string path)
+        {
+            try
+            {
+                foreach (DirectoryInfo dir in new DirectoryInfo(path).EnumerateDirectories("*", SearchOption.AllDirectories))
+                {
+                    collection.Add(dir);
+                }
+            }
+            finally
+            {
+                collection.CompleteAdding();
+            }
+        }
+
+
+
+
     }
 }

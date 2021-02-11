@@ -2,7 +2,7 @@
   "profiles": {
     "hashcheck": {
       "commandName": "Project",
-      "commandLineArgs": "-cdh Movies.hash Movies.dup"
+      "commandLineArgs": "-uf Movies.hash x:\\Movies"
     }
   }
 }
